@@ -231,6 +231,10 @@ public class BeanDeployment {
         return classNames;
     }
 
+    /*
+     * Remove classes that won't end up as beans nor are observer by PAT observers.
+     * We can safe some time by not loading such classes at all!
+     */
     protected Iterable<String> filterOutUselessClasses(Iterable<String> classes) {
         if (introspector == null || fastObserverMethodResolver == null) {
             return classes;
