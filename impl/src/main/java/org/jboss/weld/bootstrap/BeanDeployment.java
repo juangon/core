@@ -73,8 +73,8 @@ import org.jboss.weld.resolution.spi.ProcessAnnotatedTypeObserverMethodResolver;
 import org.jboss.weld.resolution.spi.ResolutionServices;
 import org.jboss.weld.resources.DefaultResourceLoader;
 import org.jboss.weld.resources.WeldClassLoaderResourceLoader;
-import org.jboss.weld.resources.spi.ClassInfo;
-import org.jboss.weld.resources.spi.ClassIntrospector;
+import org.jboss.weld.resources.spi.ClassFileInfo;
+import org.jboss.weld.resources.spi.ClassFileServices;
 import org.jboss.weld.resources.spi.ResourceLoader;
 import org.jboss.weld.security.spi.SecurityServices;
 import org.jboss.weld.servlet.ServletApiAbstraction;
@@ -105,7 +105,7 @@ public class BeanDeployment {
 
     private final ContainerLifecycleEvents lifecycleEvents;
     // these optional services are only available if the integrator provided them
-    private final ClassIntrospector introspector;
+    private final ClassFileServices classFileServices;
     private final ProcessAnnotatedTypeObserverMethodResolver fastObserverMethodResolver;
 
     public BeanDeployment(BeanDeploymentArchive beanDeploymentArchive, BeanManagerImpl deploymentManager, ServiceRegistry deploymentServices, Collection<ContextHolder<? extends Context>> contexts) {
@@ -161,7 +161,7 @@ public class BeanDeployment {
         beanManager.addBean(new BeanManagerImplBean(beanManager));
 
         this.contexts = contexts;
-        this.introspector = services.get(ClassIntrospector.class);
+        this.classFileServices = services.get(ClassFileServices.class);
         this.fastObserverMethodResolver = initFastObserverMethodResolver(services, deploymentManager);
         this.lifecycleEvents = services.get(ContainerLifecycleEvents.class);
     }
@@ -236,14 +236,18 @@ public class BeanDeployment {
      * We can safe some time by not loading such classes at all!
      */
     protected Iterable<String> filterOutUselessClasses(Iterable<String> classes) {
-        if (introspector == null || fastObserverMethodResolver == null) {
+        if (classFileServices == null || fastObserverMethodResolver == null) {
             return classes;
         }
         Set<String> result = new HashSet<String>();
         for (String className : classes) {
             // first, check if this class may end up as a CDI managed bean
-            ClassInfo classInfo = introspector.getClassInfo(className);
-            if (Beans.isTypeManagedBeanOrDecoratorOrInterceptor(classInfo)) {
+            ClassFileInfo classFileInfo = classFileServices.getClassFileInfo(className);
+            if (classFileInfo == null) {
+                // This class is not found in the index. Therefore, let's not filter it out.
+                continue;
+            }
+            if (Beans.isTypeManagedBeanOrDecoratorOrInterceptor(classFileInfo)) {
                 result.add(className);
                 continue;
             }

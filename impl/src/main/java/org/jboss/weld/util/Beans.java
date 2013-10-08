@@ -78,7 +78,7 @@ import org.jboss.weld.metadata.cache.InterceptorBindingModel;
 import org.jboss.weld.metadata.cache.MergedStereotypes;
 import org.jboss.weld.metadata.cache.MetaAnnotationStore;
 import org.jboss.weld.resolution.QualifierInstance;
-import org.jboss.weld.resources.spi.ClassInfo;
+import org.jboss.weld.resources.spi.ClassFileInfo;
 import org.jboss.weld.util.bytecode.BytecodeUtils;
 import org.jboss.weld.util.collections.ArraySet;
 import org.jboss.weld.util.reflection.HierarchyDiscovery;
@@ -491,11 +491,11 @@ public class Beans {
                 && hasSimpleCdiConstructor(annotatedType);
     }
 
-    public static boolean isTypeManagedBeanOrDecoratorOrInterceptor(ClassInfo classInfo) {
-        return ((classInfo.getModifiers() & BytecodeUtils.ENUM) == 0) && !classInfo.isAssignableTo(Extension.class)
-                && classInfo.isTopLevelClass() || Modifier.isStatic(classInfo.getModifiers())
-                && classInfo.hasCdiConstructor()
-                && (!Modifier.isAbstract(classInfo.getModifiers()) || classInfo.isAnnotationPresent(Decorator.class));
+    public static boolean isTypeManagedBeanOrDecoratorOrInterceptor(ClassFileInfo classFileInfo) {
+        return ((classFileInfo.getModifiers() & BytecodeUtils.ENUM) == 0) && !classFileInfo.isAssignableTo(Extension.class)
+                && classFileInfo.isTopLevelClass() || Modifier.isStatic(classFileInfo.getModifiers())
+                && classFileInfo.hasCdiConstructor()
+                && (!Modifier.isAbstract(classFileInfo.getModifiers()) || classFileInfo.isAnnotationPresent(Decorator.class));
     }
 
     public static boolean hasSimpleCdiConstructor(AnnotatedType<?> type) {
