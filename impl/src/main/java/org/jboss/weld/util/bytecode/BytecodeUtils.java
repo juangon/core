@@ -28,6 +28,8 @@ public class BytecodeUtils {
     private static final String TYPE = "TYPE";
     private static final String LJAVA_LANG_CLASS = "Ljava/lang/Class;";
 
+    public static final int ENUM = 0x00004000;
+
     private BytecodeUtils() {
     }
 

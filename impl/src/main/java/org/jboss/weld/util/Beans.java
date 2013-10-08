@@ -21,6 +21,7 @@ import static org.jboss.weld.util.collections.WeldCollections.immutableSet;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
@@ -77,6 +78,8 @@ import org.jboss.weld.metadata.cache.InterceptorBindingModel;
 import org.jboss.weld.metadata.cache.MergedStereotypes;
 import org.jboss.weld.metadata.cache.MetaAnnotationStore;
 import org.jboss.weld.resolution.QualifierInstance;
+import org.jboss.weld.resources.spi.ClassInfo;
+import org.jboss.weld.util.bytecode.BytecodeUtils;
 import org.jboss.weld.util.collections.ArraySet;
 import org.jboss.weld.util.reflection.HierarchyDiscovery;
 import org.jboss.weld.util.reflection.Reflections;
@@ -486,6 +489,13 @@ public class Beans {
         return !javaClass.isEnum() && !Extension.class.isAssignableFrom(javaClass)
                 && !Reflections.isNonStaticInnerClass(javaClass) && !Reflections.isParameterizedTypeWithWildcard(javaClass)
                 && hasSimpleCdiConstructor(annotatedType);
+    }
+
+    public static boolean isTypeManagedBeanOrDecoratorOrInterceptor(ClassInfo classInfo) {
+        return ((classInfo.getModifiers() & BytecodeUtils.ENUM) == 0) && !classInfo.isAssignableTo(Extension.class)
+                && classInfo.isTopLevelClass() || Modifier.isStatic(classInfo.getModifiers())
+                && classInfo.hasCdiConstructor()
+                && (!Modifier.isAbstract(classInfo.getModifiers()) || classInfo.isAnnotationPresent(Decorator.class));
     }
 
     public static boolean hasSimpleCdiConstructor(AnnotatedType<?> type) {

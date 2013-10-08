@@ -23,6 +23,8 @@ import static java.util.Collections.emptyList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.enterprise.context.spi.Context;
 
@@ -49,6 +51,7 @@ import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.bootstrap.api.helpers.SimpleServiceRegistry;
 import org.jboss.weld.bootstrap.enablement.GlobalEnablementBuilder;
 import org.jboss.weld.bootstrap.enablement.ModuleEnablement;
+import org.jboss.weld.bootstrap.events.ContainerLifecycleEvents;
 import org.jboss.weld.bootstrap.spi.BeanDeploymentArchive;
 import org.jboss.weld.bootstrap.spi.BeanDiscoveryMode;
 import org.jboss.weld.bootstrap.spi.BootstrapConfiguration;
@@ -65,13 +68,19 @@ import org.jboss.weld.manager.api.ExecutorServices;
 import org.jboss.weld.metadata.FilterPredicate;
 import org.jboss.weld.metadata.ScanningPredicate;
 import org.jboss.weld.persistence.PersistenceApiAbstraction;
+import org.jboss.weld.resolution.spi.ExtensionObserverMethod;
+import org.jboss.weld.resolution.spi.ProcessAnnotatedTypeObserverMethodResolver;
+import org.jboss.weld.resolution.spi.ResolutionServices;
 import org.jboss.weld.resources.DefaultResourceLoader;
 import org.jboss.weld.resources.WeldClassLoaderResourceLoader;
+import org.jboss.weld.resources.spi.ClassInfo;
+import org.jboss.weld.resources.spi.ClassIntrospector;
 import org.jboss.weld.resources.spi.ResourceLoader;
 import org.jboss.weld.security.spi.SecurityServices;
 import org.jboss.weld.servlet.ServletApiAbstraction;
 import org.jboss.weld.transaction.spi.TransactionServices;
 import org.jboss.weld.util.AnnotationApiAbstraction;
+import org.jboss.weld.util.Beans;
 import org.jboss.weld.util.JtaApiAbstraction;
 import org.jboss.weld.util.collections.WeldCollections;
 import org.jboss.weld.util.reflection.Reflections;
@@ -93,6 +102,11 @@ public class BeanDeployment {
     private final BeanManagerImpl beanManager;
     private final BeanDeployer beanDeployer;
     private final Collection<ContextHolder<? extends Context>> contexts;
+
+    private final ContainerLifecycleEvents lifecycleEvents;
+    // these optional services are only available if the integrator provided them
+    private final ClassIntrospector introspector;
+    private final ProcessAnnotatedTypeObserverMethodResolver fastObserverMethodResolver;
 
     public BeanDeployment(BeanDeploymentArchive beanDeploymentArchive, BeanManagerImpl deploymentManager, ServiceRegistry deploymentServices, Collection<ContextHolder<? extends Context>> contexts) {
         this(beanDeploymentArchive, deploymentManager, deploymentServices, contexts, false);
@@ -147,6 +161,18 @@ public class BeanDeployment {
         beanManager.addBean(new BeanManagerImplBean(beanManager));
 
         this.contexts = contexts;
+        this.introspector = services.get(ClassIntrospector.class);
+        this.fastObserverMethodResolver = initFastObserverMethodResolver(services, deploymentManager);
+        this.lifecycleEvents = services.get(ContainerLifecycleEvents.class);
+    }
+
+    private ProcessAnnotatedTypeObserverMethodResolver initFastObserverMethodResolver(ServiceRegistry services, BeanManagerImpl deploymentManager) {
+        final ResolutionServices resolutionServices = services.get(ResolutionServices.class);
+        if (resolutionServices == null) {
+            return null;
+        }
+        Set<ExtensionObserverMethod<?>> observers = Reflections.cast(deploymentManager.getObservers());
+        return resolutionServices.getProcessAnnotatedTypeObserverMethodResolver(observers);
     }
 
     public BeanManagerImpl getBeanManager() {
@@ -161,7 +187,7 @@ public class BeanDeployment {
         return beanDeploymentArchive;
     }
 
-    protected Iterable<String> loadClasses() {
+    protected Iterable<String> obtainClasses() {
         if (getBeanDeploymentArchive().getBeansXml() != null && getBeanDeploymentArchive().getBeansXml().getBeanDiscoveryMode().equals(BeanDiscoveryMode.NONE)) {
             // if the integrator for some reason ignored the "none" flag make sure we do not process the archive
             return Collections.emptySet();
@@ -205,8 +231,30 @@ public class BeanDeployment {
         return classNames;
     }
 
+    protected Iterable<String> filterOutUselessClasses(Iterable<String> classes) {
+        if (introspector == null || fastObserverMethodResolver == null) {
+            return classes;
+        }
+        Set<String> result = new HashSet<String>();
+        for (String className : classes) {
+            // first, check if this class may end up as a CDI managed bean
+            ClassInfo classInfo = introspector.getClassInfo(className);
+            if (Beans.isTypeManagedBeanOrDecoratorOrInterceptor(classInfo)) {
+                result.add(className);
+                continue;
+            }
+            // if not, we still need to check wheter this class is required by a ProcessAnnotatedType observer
+            if (lifecycleEvents.isProcessAnnotatedTypeObserved()) {
+                if (!fastObserverMethodResolver.resolveObserverMethods(className).isEmpty()) {
+                    result.add(className);
+                }
+            }
+        }
+        return result;
+    }
+
     public void createClasses() {
-        beanDeployer.addClasses(loadClasses());
+        beanDeployer.addClasses(filterOutUselessClasses(obtainClasses()));
     }
 
     /**
