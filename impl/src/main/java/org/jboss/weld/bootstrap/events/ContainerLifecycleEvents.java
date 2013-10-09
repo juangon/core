@@ -42,10 +42,10 @@ import org.jboss.weld.bean.ProducerField;
 import org.jboss.weld.bean.ProducerMethod;
 import org.jboss.weld.bean.SessionBean;
 import org.jboss.weld.bootstrap.api.helpers.AbstractBootstrapService;
+import org.jboss.weld.event.ExtensionObserverMethodImpl;
 import org.jboss.weld.injection.attributes.FieldInjectionPointAttributes;
 import org.jboss.weld.injection.attributes.ParameterInjectionPointAttributes;
 import org.jboss.weld.manager.BeanManagerImpl;
-import org.jboss.weld.resolution.spi.ExtensionObserverMethod;
 import org.jboss.weld.resources.spi.AnnotationDiscovery;
 import org.jboss.weld.util.reflection.Reflections;
 
@@ -69,7 +69,7 @@ public class ContainerLifecycleEvents extends AbstractBootstrapService {
     }
 
     public void processObserverMethod(ObserverMethod<?> observer) {
-        if (observer instanceof ExtensionObserverMethod<?>) {
+        if (observer instanceof ExtensionObserverMethodImpl<?, ?>) {
             processObserverMethodType(observer.getObservedType());
         }
     }

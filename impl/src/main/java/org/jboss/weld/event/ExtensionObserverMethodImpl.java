@@ -37,7 +37,6 @@ import org.jboss.weld.injection.InjectionPointFactory;
 import org.jboss.weld.injection.MethodInjectionPoint;
 import org.jboss.weld.logging.EventLogger;
 import org.jboss.weld.manager.BeanManagerImpl;
-import org.jboss.weld.resolution.spi.ExtensionObserverMethod;
 import org.jboss.weld.util.reflection.Reflections;
 
 import com.google.common.collect.ImmutableSet;
@@ -50,7 +49,7 @@ import com.google.common.collect.ImmutableSet;
  * @author Jozef Hartinger
  *
  */
-public class ExtensionObserverMethodImpl<T, X> extends ObserverMethodImpl<T, X> implements ExtensionObserverMethod<T> {
+public class ExtensionObserverMethodImpl<T, X> extends ObserverMethodImpl<T, X> {
 
     private final Container containerLifecycleEventDeliveryLock;
     private final Set<Class<? extends Annotation>> requiredTypeAnnotations;
@@ -121,7 +120,6 @@ public class ExtensionObserverMethodImpl<T, X> extends ObserverMethodImpl<T, X> 
         }
     }
 
-    @Override
     public Collection<Class<? extends Annotation>> getRequiredAnnotations() {
         return requiredTypeAnnotations;
     }

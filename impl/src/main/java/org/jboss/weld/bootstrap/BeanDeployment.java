@@ -68,9 +68,6 @@ import org.jboss.weld.manager.api.ExecutorServices;
 import org.jboss.weld.metadata.FilterPredicate;
 import org.jboss.weld.metadata.ScanningPredicate;
 import org.jboss.weld.persistence.PersistenceApiAbstraction;
-import org.jboss.weld.resolution.spi.ExtensionObserverMethod;
-import org.jboss.weld.resolution.spi.ProcessAnnotatedTypeObserverMethodResolver;
-import org.jboss.weld.resolution.spi.ResolutionServices;
 import org.jboss.weld.resources.DefaultResourceLoader;
 import org.jboss.weld.resources.WeldClassLoaderResourceLoader;
 import org.jboss.weld.resources.spi.ClassFileInfo;
@@ -106,7 +103,6 @@ public class BeanDeployment {
     private final ContainerLifecycleEvents lifecycleEvents;
     // these optional services are only available if the integrator provided them
     private final ClassFileServices classFileServices;
-    private final ProcessAnnotatedTypeObserverMethodResolver fastObserverMethodResolver;
 
     public BeanDeployment(BeanDeploymentArchive beanDeploymentArchive, BeanManagerImpl deploymentManager, ServiceRegistry deploymentServices, Collection<ContextHolder<? extends Context>> contexts) {
         this(beanDeploymentArchive, deploymentManager, deploymentServices, contexts, false);
@@ -162,17 +158,7 @@ public class BeanDeployment {
 
         this.contexts = contexts;
         this.classFileServices = services.get(ClassFileServices.class);
-        this.fastObserverMethodResolver = initFastObserverMethodResolver(services, deploymentManager);
         this.lifecycleEvents = services.get(ContainerLifecycleEvents.class);
-    }
-
-    private ProcessAnnotatedTypeObserverMethodResolver initFastObserverMethodResolver(ServiceRegistry services, BeanManagerImpl deploymentManager) {
-        final ResolutionServices resolutionServices = services.get(ResolutionServices.class);
-        if (resolutionServices == null) {
-            return null;
-        }
-        Set<ExtensionObserverMethod<?>> observers = Reflections.cast(deploymentManager.getObservers());
-        return resolutionServices.getProcessAnnotatedTypeObserverMethodResolver(observers);
     }
 
     public BeanManagerImpl getBeanManager() {
@@ -236,7 +222,7 @@ public class BeanDeployment {
      * We can safe some time by not loading such classes at all!
      */
     protected Iterable<String> filterOutUselessClasses(Iterable<String> classes) {
-        if (classFileServices == null || fastObserverMethodResolver == null) {
+        if (classFileServices == null) {
             return classes;
         }
         Set<String> result = new HashSet<String>();
@@ -253,9 +239,8 @@ public class BeanDeployment {
             }
             // if not, we still need to check wheter this class is required by a ProcessAnnotatedType observer
             if (lifecycleEvents.isProcessAnnotatedTypeObserved()) {
-                if (!fastObserverMethodResolver.resolveObserverMethods(className).isEmpty()) {
-                    result.add(className);
-                }
+                // TODO
+                result.add(className);
             }
         }
         return result;

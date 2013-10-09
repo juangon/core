@@ -495,7 +495,7 @@ public class Beans {
         return ((classFileInfo.getModifiers() & BytecodeUtils.ENUM) == 0) && !classFileInfo.isAssignableTo(Extension.class)
                 && classFileInfo.isTopLevelClass() || Modifier.isStatic(classFileInfo.getModifiers())
                 && classFileInfo.hasCdiConstructor()
-                && (!Modifier.isAbstract(classFileInfo.getModifiers()) || classFileInfo.isAnnotationPresent(Decorator.class));
+                && (!Modifier.isAbstract(classFileInfo.getModifiers()) || classFileInfo.isAnnotationDeclared(Decorator.class));
     }
 
     public static boolean hasSimpleCdiConstructor(AnnotatedType<?> type) {

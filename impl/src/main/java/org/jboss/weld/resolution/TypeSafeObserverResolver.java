@@ -22,8 +22,8 @@ import java.util.Set;
 import javax.enterprise.inject.spi.ObserverMethod;
 
 import org.jboss.weld.bootstrap.events.ProcessAnnotatedTypeEventResolvable;
+import org.jboss.weld.event.ExtensionObserverMethodImpl;
 import org.jboss.weld.metadata.cache.MetaAnnotationStore;
-import org.jboss.weld.resolution.spi.ExtensionObserverMethod;
 import org.jboss.weld.util.Beans;
 import org.jboss.weld.util.Observers;
 import org.jboss.weld.util.reflection.Reflections;
@@ -51,8 +51,8 @@ public class TypeSafeObserverResolver extends TypeSafeResolver<Resolvable, Obser
         if (!Beans.containsAllQualifiers(QualifierInstance.qualifiers(metaAnnotationStore, observer.getObservedQualifiers()), resolvable.getQualifiers())) {
             return false;
         }
-        if (observer instanceof ExtensionObserverMethod<?>) {
-            ExtensionObserverMethod<?> extensionObserver = (ExtensionObserverMethod<?>) observer;
+        if (observer instanceof ExtensionObserverMethodImpl<?, ?>) {
+            ExtensionObserverMethodImpl<?, ?> extensionObserver = (ExtensionObserverMethodImpl<?, ?>) observer;
             if (resolvable instanceof ProcessAnnotatedTypeEventResolvable && !extensionObserver.getRequiredAnnotations().isEmpty()) {
                 // this is a ProcessAnnotatedType observer method with @WithAnnotations and a resolvable for ProcessAnnotatedType
                 ProcessAnnotatedTypeEventResolvable patResolvable = (ProcessAnnotatedTypeEventResolvable) resolvable;
