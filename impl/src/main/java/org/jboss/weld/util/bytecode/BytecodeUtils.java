@@ -29,6 +29,7 @@ public class BytecodeUtils {
     private static final String LJAVA_LANG_CLASS = "Ljava/lang/Class;";
 
     public static final int ENUM = 0x00004000;
+    public static final int ANNOTATION = 0x00002000;
 
     private BytecodeUtils() {
     }

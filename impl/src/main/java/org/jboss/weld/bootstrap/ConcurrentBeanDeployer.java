@@ -25,6 +25,7 @@ import javax.enterprise.inject.spi.Bean;
 
 import org.jboss.weld.annotated.enhanced.EnhancedAnnotatedType;
 import org.jboss.weld.annotated.slim.SlimAnnotatedType;
+import org.jboss.weld.annotated.slim.SlimAnnotatedTypeContext;
 import org.jboss.weld.bean.AbstractClassBean;
 import org.jboss.weld.bean.RIBean;
 import org.jboss.weld.bootstrap.api.ServiceRegistry;
@@ -69,9 +70,9 @@ public class ConcurrentBeanDeployer extends BeanDeployer {
     public void createClassBeans() {
         final LoadingCache<Class<?>, Set<SlimAnnotatedType<?>>> otherWeldClasses = Multimaps.newConcurrentSetMultimap();
 
-        executor.invokeAllAndCheckForExceptions(new IterativeWorkerTaskFactory<SlimAnnotatedType<?>>(getEnvironment().getAnnotatedTypes()) {
-            protected void doWork(SlimAnnotatedType<?> weldClass) {
-                createClassBean(weldClass, otherWeldClasses);
+        executor.invokeAllAndCheckForExceptions(new IterativeWorkerTaskFactory<SlimAnnotatedTypeContext<?>>(getEnvironment().getAnnotatedTypes()) {
+            protected void doWork(SlimAnnotatedTypeContext<?> ctx) {
+                createClassBean(ctx.getAnnotatedType(), otherWeldClasses);
             }
         });
 

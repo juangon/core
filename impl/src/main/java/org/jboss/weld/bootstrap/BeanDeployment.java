@@ -23,8 +23,6 @@ import static java.util.Collections.emptyList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 
 import javax.enterprise.context.spi.Context;
 
@@ -51,7 +49,6 @@ import org.jboss.weld.bootstrap.api.ServiceRegistry;
 import org.jboss.weld.bootstrap.api.helpers.SimpleServiceRegistry;
 import org.jboss.weld.bootstrap.enablement.GlobalEnablementBuilder;
 import org.jboss.weld.bootstrap.enablement.ModuleEnablement;
-import org.jboss.weld.bootstrap.events.ContainerLifecycleEvents;
 import org.jboss.weld.bootstrap.spi.BeanDeploymentArchive;
 import org.jboss.weld.bootstrap.spi.BeanDiscoveryMode;
 import org.jboss.weld.bootstrap.spi.BootstrapConfiguration;
@@ -70,14 +67,11 @@ import org.jboss.weld.metadata.ScanningPredicate;
 import org.jboss.weld.persistence.PersistenceApiAbstraction;
 import org.jboss.weld.resources.DefaultResourceLoader;
 import org.jboss.weld.resources.WeldClassLoaderResourceLoader;
-import org.jboss.weld.resources.spi.ClassFileInfo;
-import org.jboss.weld.resources.spi.ClassFileServices;
 import org.jboss.weld.resources.spi.ResourceLoader;
 import org.jboss.weld.security.spi.SecurityServices;
 import org.jboss.weld.servlet.ServletApiAbstraction;
 import org.jboss.weld.transaction.spi.TransactionServices;
 import org.jboss.weld.util.AnnotationApiAbstraction;
-import org.jboss.weld.util.Beans;
 import org.jboss.weld.util.JtaApiAbstraction;
 import org.jboss.weld.util.collections.WeldCollections;
 import org.jboss.weld.util.reflection.Reflections;
@@ -99,10 +93,6 @@ public class BeanDeployment {
     private final BeanManagerImpl beanManager;
     private final BeanDeployer beanDeployer;
     private final Collection<ContextHolder<? extends Context>> contexts;
-
-    private final ContainerLifecycleEvents lifecycleEvents;
-    // these optional services are only available if the integrator provided them
-    private final ClassFileServices classFileServices;
 
     public BeanDeployment(BeanDeploymentArchive beanDeploymentArchive, BeanManagerImpl deploymentManager, ServiceRegistry deploymentServices, Collection<ContextHolder<? extends Context>> contexts) {
         this(beanDeploymentArchive, deploymentManager, deploymentServices, contexts, false);
@@ -157,8 +147,6 @@ public class BeanDeployment {
         beanManager.addBean(new BeanManagerImplBean(beanManager));
 
         this.contexts = contexts;
-        this.classFileServices = services.get(ClassFileServices.class);
-        this.lifecycleEvents = services.get(ContainerLifecycleEvents.class);
     }
 
     public BeanManagerImpl getBeanManager() {
@@ -180,7 +168,7 @@ public class BeanDeployment {
         }
         Function<Metadata<Filter>, Predicate<String>> filterToPredicateFunction = new Function<Metadata<Filter>, Predicate<String>>() {
 
-            ResourceLoader resourceLoader = beanDeployer.getResourceLoader();
+            final ResourceLoader resourceLoader = beanDeployer.getManager().getServices().get(ResourceLoader.class);
 
             @Override
             public Predicate<String> apply(Metadata<Filter> from) {
@@ -217,37 +205,8 @@ public class BeanDeployment {
         return classNames;
     }
 
-    /*
-     * Remove classes that won't end up as beans nor are observer by PAT observers.
-     * We can safe some time by not loading such classes at all!
-     */
-    protected Iterable<String> filterOutUselessClasses(Iterable<String> classes) {
-        if (classFileServices == null) {
-            return classes;
-        }
-        Set<String> result = new HashSet<String>();
-        for (String className : classes) {
-            // first, check if this class may end up as a CDI managed bean
-            ClassFileInfo classFileInfo = classFileServices.getClassFileInfo(className);
-            if (classFileInfo == null) {
-                // This class is not found in the index. Therefore, let's not filter it out.
-                continue;
-            }
-            if (Beans.isTypeManagedBeanOrDecoratorOrInterceptor(classFileInfo)) {
-                result.add(className);
-                continue;
-            }
-            // if not, we still need to check wheter this class is required by a ProcessAnnotatedType observer
-            if (lifecycleEvents.isProcessAnnotatedTypeObserved()) {
-                // TODO
-                result.add(className);
-            }
-        }
-        return result;
-    }
-
     public void createClasses() {
-        beanDeployer.addClasses(filterOutUselessClasses(obtainClasses()));
+        beanDeployer.addClasses(obtainClasses());
     }
 
     /**

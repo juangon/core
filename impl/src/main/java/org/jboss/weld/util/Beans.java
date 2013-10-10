@@ -493,7 +493,7 @@ public class Beans {
 
     public static boolean isTypeManagedBeanOrDecoratorOrInterceptor(ClassFileInfo classFileInfo) {
         return ((classFileInfo.getModifiers() & BytecodeUtils.ENUM) == 0) && !classFileInfo.isAssignableTo(Extension.class)
-                && classFileInfo.isTopLevelClass() || Modifier.isStatic(classFileInfo.getModifiers())
+                && (classFileInfo.isTopLevelClass() || Modifier.isStatic(classFileInfo.getModifiers()))
                 && classFileInfo.hasCdiConstructor()
                 && (!Modifier.isAbstract(classFileInfo.getModifiers()) || classFileInfo.isAnnotationDeclared(Decorator.class));
     }
