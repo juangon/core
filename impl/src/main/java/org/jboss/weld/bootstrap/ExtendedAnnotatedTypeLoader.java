@@ -26,6 +26,7 @@ import org.jboss.weld.annotated.slim.SlimAnnotatedTypeContext;
 import org.jboss.weld.bootstrap.events.ContainerLifecycleEvents;
 import org.jboss.weld.event.ExtensionObserverMethodImpl;
 import org.jboss.weld.event.GlobalObserverNotifierService;
+import org.jboss.weld.logging.BootstrapLogger;
 import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.resources.ClassTransformer;
 import org.jboss.weld.resources.spi.ClassFileInfo;
@@ -57,29 +58,35 @@ public class ExtendedAnnotatedTypeLoader extends AnnotatedTypeLoader {
 
     @Override
     public <T> SlimAnnotatedTypeContext<T> loadAnnotatedType(String className, String bdaId) {
-        final ClassFileInfo classFileInfo = classFileServices.getClassFileInfo(className);
+        try {
+            final ClassFileInfo classFileInfo = classFileServices.getClassFileInfo(className);
 
-        // firstly, check if this class is an annotation
-        if ((classFileInfo.getModifiers() & BytecodeUtils.ANNOTATION) != 0) {
-            // This is an annotation - an annotation may not end up as a managed bean nor be observer by PAT observer. Skip it.
-            return null;
-        }
+            // firstly, check if this class is an annotation
+            if ((classFileInfo.getModifiers() & BytecodeUtils.ANNOTATION) != 0) {
+                // This is an annotation - an annotation may not end up as a managed bean nor be observer by PAT observer. Skip it.
+                return null;
+            }
 
-        // secondly, let's resolve PAT observers for this class
-        Set<ExtensionObserverMethodImpl<?, ?>> observerMethods = Collections.emptySet();
-        if (containerLifecycleEvents.isProcessAnnotatedTypeObserved()) {
-            observerMethods = resolver.resolveProcessAnnotatedTypeObservers(className);
-            if (!observerMethods.isEmpty()) {
-                // there are PAT observers for this class, register the class now
+            // secondly, let's resolve PAT observers for this class
+            Set<ExtensionObserverMethodImpl<?, ?>> observerMethods = Collections.emptySet();
+            if (containerLifecycleEvents.isProcessAnnotatedTypeObserved()) {
+                observerMethods = resolver.resolveProcessAnnotatedTypeObservers(className);
+                if (!observerMethods.isEmpty()) {
+                    // there are PAT observers for this class, register the class now
+                    return createContext(className, classFileInfo, observerMethods, bdaId);
+                }
+            }
+
+            // lastly, check if this class fulfills CDI managed bean requirements - if it does, add the class
+            if (Beans.isTypeManagedBeanOrDecoratorOrInterceptor(classFileInfo)) {
                 return createContext(className, classFileInfo, observerMethods, bdaId);
             }
+            return null;
+        } catch (IllegalStateException e) {
+            // TODO: implement properly
+            BootstrapLogger.LOG.warn(e.getMessage());
+            return super.loadAnnotatedType(className, bdaId);
         }
-
-        // lastly, check if this class fulfills CDI managed bean requirements - if it does, add the class
-        if (Beans.isTypeManagedBeanOrDecoratorOrInterceptor(classFileInfo)) {
-            return createContext(className, classFileInfo, observerMethods, bdaId);
-        }
-        return null;
     }
 
     private <T> SlimAnnotatedTypeContext<T> createContext(String className, ClassFileInfo classFileInfo,
