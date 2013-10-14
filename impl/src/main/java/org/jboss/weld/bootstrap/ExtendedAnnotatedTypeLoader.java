@@ -30,6 +30,7 @@ import org.jboss.weld.logging.BootstrapLogger;
 import org.jboss.weld.manager.BeanManagerImpl;
 import org.jboss.weld.resources.ClassTransformer;
 import org.jboss.weld.resources.spi.ClassFileInfo;
+import org.jboss.weld.resources.spi.ClassFileInfoException;
 import org.jboss.weld.resources.spi.ClassFileServices;
 import org.jboss.weld.resources.spi.ResourceLoadingException;
 import org.jboss.weld.util.Beans;
@@ -66,6 +67,9 @@ public class ExtendedAnnotatedTypeLoader extends AnnotatedTypeLoader {
                 // This is an annotation - an annotation may not end up as a managed bean nor be observer by PAT observer. Skip it.
                 return null;
             }
+            if (classFileInfo.isVetoed()) {
+                return null;
+            }
 
             // secondly, let's resolve PAT observers for this class
             Set<ExtensionObserverMethodImpl<?, ?>> observerMethods = Collections.emptySet();
@@ -82,7 +86,7 @@ public class ExtendedAnnotatedTypeLoader extends AnnotatedTypeLoader {
                 return createContext(className, classFileInfo, observerMethods, bdaId);
             }
             return null;
-        } catch (IllegalStateException e) {
+        } catch (ClassFileInfoException e) {
             // TODO: implement properly
             BootstrapLogger.LOG.warn(e.getMessage());
             return super.loadAnnotatedType(className, bdaId);
