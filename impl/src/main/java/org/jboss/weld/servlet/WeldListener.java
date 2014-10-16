@@ -96,10 +96,7 @@ public class WeldListener extends AbstractServletListener {
     }
 
     @Override
-    public void requestDestroyed(ServletRequestEvent event) {
-        if (isIncludedRequest(event.getServletRequest()) || isForwardedRequest(event.getServletRequest())) {
-            return;
-        }
+    public void requestDestroyed(ServletRequestEvent event) {        
         log.trace(REQUEST_DESTROYED, event.getServletRequest());
         // JBoss AS will still start the deployment even if WB fails
         if (Container.available()) {
@@ -116,8 +113,10 @@ public class WeldListener extends AbstractServletListener {
                     * method, we can't detect that in the phase listener. Make sure it
                     * happens!
                     */
-                    if (conversationContext().isActive()) {
-                        conversationContext().deactivate();
+                    if (!isIncludedRequest(request) && !isForwardedRequest(request)) {
+                       if (conversationContext().isActive()) {
+                          conversationContext().deactivate();
+                       }
                     }
                 } finally {
                     requestContext().dissociate(request);
@@ -131,10 +130,7 @@ public class WeldListener extends AbstractServletListener {
     }
 
     @Override
-    public void requestInitialized(ServletRequestEvent event) {
-        if (isIncludedRequest(event.getServletRequest()) || isForwardedRequest(event.getServletRequest())) {
-            return;
-        }
+    public void requestInitialized(ServletRequestEvent event) {         
         log.trace(REQUEST_INITIALIZED, event.getServletRequest());
         // JBoss AS will still start the deployment even if Weld fails to start
         if (Container.available()) {
